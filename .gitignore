@@ -27,3 +27,6 @@ yarn-error.log*
 # Test outputs
 coverage/
 .nyc_output/
+
+# Exclude local frontend project (not part of template)
+frontend/
