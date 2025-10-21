@@ -1,0 +1,27 @@
+name: DevFlow (Gemini)
+
+# Example consumer workflow using Gemini
+# Place this in your repo at: .github/workflows/devflow.yml
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+  workflow_dispatch:
+
+jobs:
+  orchestrate:
+    uses: your-org/navratna-workflow-step/.github/workflows/orchestrator-multi-provider.yml@main
+    secrets:
+      AI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    with:
+      ai_provider: gemini
+      ai_model: gemini-2.0-flash-exp  # or: gemini-1.5-pro, gemini-1.5-flash
+      default_branch: main
+      pkg_mgr: pnpm
+      install_cmd: pnpm i
+      build_cmd: pnpm -w build
+      test_cmd: pnpm -w test -- --ci
+      lint_cmd: pnpm -w lint
+      typecheck_cmd: pnpm -w typecheck
+      branch_prefix: nav
+      scope: core

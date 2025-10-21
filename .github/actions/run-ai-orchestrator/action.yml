@@ -1,0 +1,183 @@
+name: "Run AI Orchestrator (Multi-Provider)"
+description: "Maps repo context + labels → prompt vars, runs AI provider (Gemini/Claude/Qwen), writes artifacts, commits/pushes"
+inputs:
+  ai_provider:
+    required: false
+    description: "AI provider: gemini, claude, qwen, qwen-local"
+    default: "gemini"
+  ai_model:
+    required: false
+    description: "Model name (auto-selects best if not specified)"
+    default: "auto"
+  api_key:
+    required: true
+    description: "API key for the selected provider"
+  prompt_file:
+    required: true
+    description: "Path to the prompt template file"
+  repo_full_name:
+    required: true
+    description: "Full repository name (owner/repo)"
+  default_branch:
+    required: true
+    description: "Default branch name"
+  pkg_mgr:
+    required: true
+    description: "Package manager (npm, pnpm, yarn)"
+  install_cmd:
+    required: true
+    description: "Package install command"
+  build_cmd:
+    required: true
+    description: "Build command"
+  test_cmd:
+    required: true
+    description: "Test command"
+  lint_cmd:
+    required: true
+    description: "Lint command"
+  typecheck_cmd:
+    required: true
+    description: "Type check command"
+  branch_prefix:
+    required: true
+    description: "Branch prefix for generated branches"
+  scope:
+    required: true
+    description: "Scope for commit messages"
+  event:
+    required: true
+    description: "GitHub event name"
+  project_status:
+    required: true
+    description: "Project status (Inception, Discussion, Build, Review, Done)"
+  work_type:
+    required: true
+    description: "Work type (feature, bugfix, refactor, etc.)"
+  issue_number:
+    required: true
+    description: "Issue number"
+  issue_title:
+    required: true
+    description: "Issue title"
+  issue_body_json:
+    required: true
+    description: "Issue body (JSON encoded)"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y jq curl
+
+    - name: Seed prompt file if missing
+      shell: bash
+      run: |
+        mkdir -p ops/prompts ops/out
+        if [ ! -f "${{ inputs.prompt_file }}" ]; then
+          echo "Seeding default prompt template..."
+          # Use the seed from the original action
+          if [ -f "${{ github.action_path }}/../run-gemini-orchestrator/seed/ops/prompts/navratna_orchestrator.md" ]; then
+            cp "${{ github.action_path }}/../run-gemini-orchestrator/seed/ops/prompts/navratna_orchestrator.md" "${{ inputs.prompt_file }}"
+          fi
+        fi
+
+    - name: Prepare prompt with variables
+      id: prep
+      shell: bash
+      run: |
+        SLUG="${{ inputs.issue_number }}"
+        echo "slug=$SLUG" >> $GITHUB_OUTPUT
+
+        # Parse issue body
+        ISSUE_BODY='${{ inputs.issue_body_json }}'
+
+        # Create expanded prompt with all variables substituted
+        EXPANDED_PROMPT_FILE="ops/prompts/expanded_prompt_${SLUG}.md"
+
+        # Read the template and substitute variables
+        cp "${{ inputs.prompt_file }}" "$EXPANDED_PROMPT_FILE"
+
+        # Substitute all variables in the prompt
+        sed -i "s|\${REPO_FULL_NAME}|${{ inputs.repo_full_name }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${DEFAULT_BRANCH}|${{ inputs.default_branch }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${PKG_MGR}|${{ inputs.pkg_mgr }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${PKG_MGR_INSTALL_CMD}|${{ inputs.install_cmd }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${BUILD_CMD}|${{ inputs.build_cmd }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${TEST_CMD}|${{ inputs.test_cmd }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${LINT_CMD}|${{ inputs.lint_cmd }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${TYPECHECK_CMD}|${{ inputs.typecheck_cmd }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${EVENT}|${{ inputs.event }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${PROJECT_STATUS}|${{ inputs.project_status }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${WORK_TYPE}|${{ inputs.work_type }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${ISSUE_NUMBER}|${{ inputs.issue_number }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${ISSUE_TITLE}|${{ inputs.issue_title }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${BRANCH_PREFIX}|${{ inputs.branch_prefix }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${SCOPE}|${{ inputs.scope }}|g" "$EXPANDED_PROMPT_FILE"
+        sed -i "s|\${SLUG}|$SLUG|g" "$EXPANDED_PROMPT_FILE"
+
+        echo "expanded_prompt=$EXPANDED_PROMPT_FILE" >> $GITHUB_OUTPUT
+        echo "output_file=ops/out/ai-output-${SLUG}.md" >> $GITHUB_OUTPUT
+
+    - name: Run AI Provider
+      shell: bash
+      env:
+        AI_PROVIDER: ${{ inputs.ai_provider }}
+        AI_MODEL: ${{ inputs.ai_model }}
+        AI_API_KEY: ${{ inputs.api_key }}
+        AI_PROMPT_FILE: ${{ steps.prep.outputs.expanded_prompt }}
+        AI_OUTPUT_FILE: ${{ steps.prep.outputs.output_file }}
+      run: |
+        # Make the script executable
+        chmod +x "${{ github.action_path }}/../run-gemini-orchestrator/ai-provider.sh"
+
+        # Run the multi-provider script
+        "${{ github.action_path }}/../run-gemini-orchestrator/ai-provider.sh"
+
+    - name: Process output based on status
+      shell: bash
+      run: |
+        STATUS="${{ inputs.project_status }}"
+        ISSUE_NUM="${{ inputs.issue_number }}"
+        OUTPUT_FILE="${{ steps.prep.outputs.output_file }}"
+
+        # Create status-specific output files
+        case "$STATUS" in
+          Inception|inception)
+            cp "$OUTPUT_FILE" "ops/out/design-${ISSUE_NUM}.md"
+            echo "✅ Created design document"
+            ;;
+          Discussion|discussion)
+            cp "$OUTPUT_FILE" "ops/out/design-${ISSUE_NUM}-revised.md"
+            echo "✅ Created revised design document"
+            ;;
+          Build|build)
+            cp "$OUTPUT_FILE" "ops/out/impl-plan-${ISSUE_NUM}.md"
+            echo "✅ Created implementation plan"
+            ;;
+          Review|review)
+            cp "$OUTPUT_FILE" "ops/out/review-${ISSUE_NUM}.md"
+            echo "✅ Created review comments"
+            ;;
+          Done|done)
+            cp "$OUTPUT_FILE" "ops/out/release-notes-${ISSUE_NUM}.md"
+            echo "✅ Created release notes"
+            ;;
+          *)
+            echo "⚠️  Unknown status: $STATUS, keeping generic output"
+            ;;
+        esac
+
+    - name: Commit + push changes (if any)
+      shell: bash
+      run: |
+        git config user.name "navratna-bot"
+        git config user.email "navratna-bot@users.noreply.github.com"
+        git add -A
+        if ! git diff --cached --quiet; then
+          git commit -m "chore(ops): update artifacts for #${{ inputs.issue_number }} [${{ inputs.ai_provider }}]"
+          git push || true
+        else
+          echo "No changes to commit"
+        fi

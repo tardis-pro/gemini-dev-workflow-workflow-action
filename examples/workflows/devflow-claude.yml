@@ -1,0 +1,27 @@
+name: DevFlow (Claude)
+
+# Example consumer workflow using Claude
+# Place this in your repo at: .github/workflows/devflow.yml
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+  workflow_dispatch:
+
+jobs:
+  orchestrate:
+    uses: your-org/navratna-workflow-step/.github/workflows/orchestrator-multi-provider.yml@main
+    secrets:
+      AI_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+    with:
+      ai_provider: claude
+      ai_model: claude-3-5-sonnet-20241022  # or: claude-3-opus-20240229, claude-3-haiku-20240307
+      default_branch: main
+      pkg_mgr: pnpm
+      install_cmd: pnpm i
+      build_cmd: pnpm -w build
+      test_cmd: pnpm -w test -- --ci
+      lint_cmd: pnpm -w lint
+      typecheck_cmd: pnpm -w typecheck
+      branch_prefix: nav
+      scope: core

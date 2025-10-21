@@ -1,0 +1,27 @@
+name: DevFlow (Qwen)
+
+# Example consumer workflow using Qwen (Alibaba Cloud DashScope)
+# Place this in your repo at: .github/workflows/devflow.yml
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+  workflow_dispatch:
+
+jobs:
+  orchestrate:
+    uses: your-org/navratna-workflow-step/.github/workflows/orchestrator-multi-provider.yml@main
+    secrets:
+      AI_API_KEY: ${{ secrets.QWEN_API_KEY }}  # DashScope API Key
+    with:
+      ai_provider: qwen
+      ai_model: qwen-max  # or: qwen-plus, qwen-turbo
+      default_branch: main
+      pkg_mgr: pnpm
+      install_cmd: pnpm i
+      build_cmd: pnpm -w build
+      test_cmd: pnpm -w test -- --ci
+      lint_cmd: pnpm -w lint
+      typecheck_cmd: pnpm -w typecheck
+      branch_prefix: nav
+      scope: core

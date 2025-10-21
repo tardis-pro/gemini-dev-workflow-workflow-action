@@ -1,0 +1,29 @@
+name: DevFlow (Qwen Local)
+
+# Example consumer workflow using Qwen via Ollama (self-hosted)
+# Requires Ollama running on a self-hosted runner with Qwen models installed
+# Place this in your repo at: .github/workflows/devflow.yml
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+  workflow_dispatch:
+
+jobs:
+  orchestrate:
+    runs-on: self-hosted  # Must be a self-hosted runner with Ollama
+    uses: your-org/navratna-workflow-step/.github/workflows/orchestrator-multi-provider.yml@main
+    secrets:
+      AI_API_KEY: "dummy"  # Not needed for local Ollama, but required by workflow
+    with:
+      ai_provider: qwen-local
+      ai_model: qwen2.5:latest  # or: qwen2.5:72b, qwen2.5:32b, qwen2.5:14b, qwen2.5:7b
+      default_branch: main
+      pkg_mgr: pnpm
+      install_cmd: pnpm i
+      build_cmd: pnpm -w build
+      test_cmd: pnpm -w test -- --ci
+      lint_cmd: pnpm -w lint
+      typecheck_cmd: pnpm -w typecheck
+      branch_prefix: nav
+      scope: core
