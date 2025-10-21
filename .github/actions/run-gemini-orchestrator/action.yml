@@ -1,0 +1,131 @@
+name: "Run Gemini Orchestrator"
+description: "Maps repo context + labels → prompt vars, runs Gemini CLI, writes artifacts, commits/pushes"
+inputs:
+  api_key:
+    required: true
+    description: "Gemini API key"
+  prompt_file:
+    required: true
+    description: "Path to the prompt template file"
+  repo_full_name:
+    required: true
+    description: "Full repository name (owner/repo)"
+  default_branch:
+    required: true
+    description: "Default branch name"
+  pkg_mgr:
+    required: true
+    description: "Package manager (npm, pnpm, yarn)"
+  install_cmd:
+    required: true
+    description: "Package install command"
+  build_cmd:
+    required: true
+    description: "Build command"
+  test_cmd:
+    required: true
+    description: "Test command"
+  lint_cmd:
+    required: true
+    description: "Lint command"
+  typecheck_cmd:
+    required: true
+    description: "Type check command"
+  branch_prefix:
+    required: true
+    description: "Branch prefix for generated branches"
+  scope:
+    required: true
+    description: "Scope for commit messages"
+  event:
+    required: true
+    description: "GitHub event name"
+  project_status:
+    required: true
+    description: "Project status (Inception, Discussion, Build, Review, Done)"
+  work_type:
+    required: true
+    description: "Work type (feature, bugfix, refactor, etc.)"
+  issue_number:
+    required: true
+    description: "Issue number"
+  issue_title:
+    required: true
+    description: "Issue title"
+  issue_body_json:
+    required: true
+    description: "Issue body (JSON encoded)"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install jq
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y jq
+
+    - name: Seed prompt file if missing
+      shell: bash
+      run: |
+        mkdir -p ops/prompts ops/out
+        if [ ! -f "${{ inputs.prompt_file }}" ]; then
+          echo "Seeding default prompt template..."
+          cp "${{ github.action_path }}/seed/ops/prompts/navratna_orchestrator.md" "${{ inputs.prompt_file }}"
+        fi
+
+    - name: Prepare variables
+      id: prep
+      shell: bash
+      run: |
+        SLUG="${{ inputs.issue_number }}"
+        echo "slug=$SLUG" >> $GITHUB_OUTPUT
+
+        # Parse issue body and extract labels
+        ISSUE_BODY='${{ inputs.issue_body_json }}'
+        LABELS_CSV=""
+
+        # If you have labels in the event, extract them
+        # This is a placeholder - adjust based on your needs
+        echo "issue_body_clean<<EOF" >> $GITHUB_OUTPUT
+        echo "$ISSUE_BODY" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Run Gemini CLI
+      uses: google-github-actions/run-gemini-cli@v0
+      with:
+        api_key: ${{ inputs.api_key }}
+        prompt_file: ${{ inputs.prompt_file }}
+        vars: |
+          REPO_FULL_NAME=${{ inputs.repo_full_name }}
+          DEFAULT_BRANCH=${{ inputs.default_branch }}
+          PKG_MGR=${{ inputs.pkg_mgr }}
+          PKG_MGR_INSTALL_CMD=${{ inputs.install_cmd }}
+          BUILD_CMD=${{ inputs.build_cmd }}
+          TEST_CMD=${{ inputs.test_cmd }}
+          LINT_CMD=${{ inputs.lint_cmd }}
+          TYPECHECK_CMD=${{ inputs.typecheck_cmd }}
+          IS_MONOREPO=true
+          AFFECTED_PKGS=
+          EVENT=${{ inputs.event }}
+          PROJECT_STATUS=${{ inputs.project_status }}
+          WORK_TYPE=${{ inputs.work_type }}
+          ISSUE_NUMBER=${{ inputs.issue_number }}
+          ISSUE_TITLE=${{ inputs.issue_title }}
+          ISSUE_BODY_INDENTED=${{ steps.prep.outputs.issue_body_clean }}
+          ISSUE_LABELS_CSV=
+          ACCEPTANCE_CRITERIA_INDENTED=
+          BRANCH_PREFIX=${{ inputs.branch_prefix }}
+          SCOPE=${{ inputs.scope }}
+          SLUG=${{ steps.prep.outputs.slug }}
+
+    - name: Commit + push changes (if any)
+      shell: bash
+      run: |
+        git config user.name "navratna-bot"
+        git config user.email "navratna-bot@users.noreply.github.com"
+        git add -A
+        if ! git diff --cached --quiet; then
+          git commit -m "chore(ops): update artifacts for #${{ inputs.issue_number }}"
+          git push || true
+        else
+          echo "No changes to commit"
+        fi

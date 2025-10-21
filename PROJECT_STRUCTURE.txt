@@ -1,0 +1,217 @@
+Navratna DevFlow - Complete Project Structure
+==============================================
+
+devflow-gemini/
+│
+├── .github/
+│   ├── workflows/
+│   │   └── orchestrator.yml                          # Reusable workflow (entry point)
+│   │
+│   ├── actions/
+│   │   └── run-gemini-orchestrator/
+│   │       ├── action.yml                            # Composite action (core logic)
+│   │       └── seed/
+│   │           └── ops/
+│   │               ├── prompts/
+│   │               │   └── navratna_orchestrator.md  # Default AI prompt template
+│   │               └── out/
+│   │                   └── .gitkeep                  # Placeholder for outputs
+│   │
+│   ├── labels.json                                   # Label schema (programmatic)
+│   ├── PULL_REQUEST_TEMPLATE.md                      # PR template
+│   └── CODEOWNERS                                    # Code ownership
+│
+├── scripts/
+│   └── bootstrap.sh                                  # One-command setup automation (executable)
+│
+├── examples/
+│   ├── devflow-consumer.yml                          # Example: Consumer workflow
+│   └── custom-prompt-example.md                      # Example: Customization guide
+│
+├── docs/
+│   ├── ARCHITECTURE.md                               # Technical architecture & design
+│   ├── TROUBLESHOOTING.md                            # Common issues & solutions
+│   └── VERSIONING.md                                 # Version management & upgrades
+│
+├── README.md                                         # Main documentation (start here!)
+├── SETUP_GUIDE.md                                    # Step-by-step deployment guide
+├── CONTRIBUTING.md                                   # Contribution guidelines
+├── CHANGELOG.md                                      # Version history
+├── LICENSE                                           # MIT License
+└── .gitignore                                        # Git ignore rules
+
+
+File Purposes
+=============
+
+CORE WORKFLOW FILES
+-------------------
+.github/workflows/orchestrator.yml
+  - Reusable GitHub Actions workflow
+  - Accepts 10+ configuration inputs (build commands, branch prefix, etc.)
+  - Parses issue labels to determine state/work-type
+  - Delegates to composite action
+
+.github/actions/run-gemini-orchestrator/action.yml
+  - Composite action that runs the orchestrator
+  - Seeds prompt template if missing
+  - Calls google-github-actions/run-gemini-cli
+  - Commits and pushes generated artifacts
+
+.github/actions/run-gemini-orchestrator/seed/ops/prompts/navratna_orchestrator.md
+  - Default AI prompt template
+  - Defines state machine behavior (Inception → Discussion → Build → Review → Done)
+  - Variable injection syntax (${ISSUE_NUMBER}, ${PROJECT_STATUS}, etc.)
+  - Copied to consumer repos if they don't have a custom prompt
+
+AUTOMATION
+----------
+scripts/bootstrap.sh
+  - Automates setup for consumer repos
+  - Creates labels via GitHub CLI
+  - Adds DevFlow caller workflow
+  - Pushes setup branch
+  - Prints next steps
+
+DOCUMENTATION
+-------------
+README.md
+  - Overview, quick start, configuration
+  - State machine explanation
+  - Examples and architecture diagram
+
+SETUP_GUIDE.md
+  - Step-by-step deployment instructions
+  - Publishing template repo
+  - Bootstrapping consumer repos
+  - Testing and verification
+
+docs/ARCHITECTURE.md
+  - Technical deep dive
+  - Data flow diagrams
+  - Customization points
+  - Security considerations
+
+docs/TROUBLESHOOTING.md
+  - Common errors and solutions
+  - Debugging tips
+  - FAQ
+
+docs/VERSIONING.md
+  - Semantic versioning strategy
+  - Upgrade procedures
+  - Breaking change policy
+
+EXAMPLES
+--------
+examples/devflow-consumer.yml
+  - Copy-paste ready consumer workflow
+  - Commented alternatives (npm, yarn, single-package)
+
+examples/custom-prompt-example.md
+  - How to customize prompts
+  - Domain-specific examples (Backend, Data, DevOps)
+
+METADATA
+--------
+.github/labels.json
+  - Machine-readable label schema
+  - Can be imported programmatically
+
+.github/PULL_REQUEST_TEMPLATE.md
+  - Standard PR template for consumers to copy
+
+.github/CODEOWNERS
+  - Code ownership rules for the template repo
+
+CONTRIBUTING.md
+  - How to contribute
+  - Development setup
+  - Testing procedures
+  - Coding standards
+
+CHANGELOG.md
+  - Version history
+  - Release notes
+
+LICENSE
+  - MIT License
+
+.gitignore
+  - Standard ignores (OS, IDEs, temp files)
+
+
+Key Concepts
+============
+
+1. REUSABLE WORKFLOW
+   Consumer repos call the template workflow via workflow_call.
+   Zero code duplication - all logic lives in one place (this repo).
+
+2. COMPOSITE ACTION
+   Wraps the Gemini CLI and handles variable mapping, seeding, and commits.
+
+3. SEED PROMPT
+   Ships with a default prompt that gets copied to consumer repos automatically.
+   Consumer repos can customize by editing ops/prompts/navratna_orchestrator.md.
+
+4. LABEL-DRIVEN STATE MACHINE
+   Issues move through states via labels:
+   - status:inception → status:discussion → status:build → status:review → status:done
+   - Work types: feature, bugfix, refactor, performance, dep-bump, docs, chore
+
+5. VERSIONED RELEASES
+   Template is tagged (v1, v1.1, v2, etc.).
+   Consumers pin to specific versions and upgrade explicitly.
+
+
+Usage Flow
+==========
+
+1. DEPLOY TEMPLATE
+   gh repo create tardis-pro/devflow-gemini --public --source=. --remote=origin
+   git push -u origin main
+   git tag v1 && git push origin v1
+
+2. BOOTSTRAP CONSUMER REPO
+   ./scripts/bootstrap.sh your-org/your-repo
+
+3. ADD SECRET
+   gh secret set GEMINI_API_KEY --repo your-org/your-repo
+
+4. MERGE SETUP PR
+   gh pr merge setup/devflow --repo your-org/your-repo --squash
+
+5. USE IT
+   Create issue → Add labels (status:inception, feature) → Workflow runs → Artifacts generated
+
+
+Consumer Repo Structure (After Bootstrap)
+==========================================
+
+your-repo/
+├── .github/
+│   └── workflows/
+│       └── devflow.yml                  # Calls reusable workflow
+├── ops/
+│   ├── prompts/
+│   │   └── navratna_orchestrator.md     # Auto-seeded (or custom)
+│   └── out/
+│       ├── design-123.md                # Generated artifacts
+│       ├── impl-plan-456.md
+│       └── review-789.md
+└── [rest of repo files...]
+
+
+Next Steps for Deployment
+==========================
+
+1. Review all files (especially README.md and SETUP_GUIDE.md)
+2. Customize branding (replace "tardis-pro" with your org name)
+3. Push to GitHub: gh repo create tardis-pro/devflow-gemini --public --source=. --remote=origin
+4. Tag v1: git tag v1 && git push origin v1
+5. Create release: gh release create v1 --title "v1.0.0" --notes "Initial release"
+6. Test with a real repo: ./scripts/bootstrap.sh test-org/test-repo
+7. Roll out to production repos
+
+🎉 You're ready to ship!

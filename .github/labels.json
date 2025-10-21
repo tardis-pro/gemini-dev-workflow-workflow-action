@@ -1,0 +1,62 @@
+[
+  {
+    "name": "status:inception",
+    "color": "0366d6",
+    "description": "Initial design phase"
+  },
+  {
+    "name": "status:discussion",
+    "color": "fbca04",
+    "description": "Design refinement and discussion"
+  },
+  {
+    "name": "status:build",
+    "color": "28a745",
+    "description": "Implementation phase"
+  },
+  {
+    "name": "status:review",
+    "color": "d93f0b",
+    "description": "Code review phase"
+  },
+  {
+    "name": "status:done",
+    "color": "6f42c1",
+    "description": "Completed"
+  },
+  {
+    "name": "feature",
+    "color": "84b6eb",
+    "description": "New feature or functionality"
+  },
+  {
+    "name": "refactor",
+    "color": "5319e7",
+    "description": "Code restructuring without functional changes"
+  },
+  {
+    "name": "performance",
+    "color": "ff6b6b",
+    "description": "Performance improvement"
+  },
+  {
+    "name": "dep-bump",
+    "color": "0366d6",
+    "description": "Dependency update"
+  },
+  {
+    "name": "bugfix",
+    "color": "d73a4a",
+    "description": "Bug fix"
+  },
+  {
+    "name": "docs",
+    "color": "0075ca",
+    "description": "Documentation changes"
+  },
+  {
+    "name": "chore",
+    "color": "d4c5f9",
+    "description": "Maintenance tasks"
+  }
+]

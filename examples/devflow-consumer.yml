@@ -1,0 +1,61 @@
+# Example consumer workflow
+# Copy this to your repo at: .github/workflows/devflow.yml
+
+name: DevFlow
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+  workflow_dispatch:
+
+jobs:
+  orchestrate:
+    # Reference the reusable workflow from the template repo
+    # Replace @v1 with @v1.1, @v1.2, etc. to upgrade
+    uses: tardis-pro/devflow-gemini/.github/workflows/orchestrator.yml@v1
+    secrets: inherit
+    with:
+      # Customize these inputs for your repo
+      default_branch: main
+      pkg_mgr: pnpm
+      install_cmd: pnpm i
+      build_cmd: pnpm -w build
+      test_cmd: pnpm -w test -- --ci
+      lint_cmd: pnpm -w lint
+      typecheck_cmd: pnpm -w typecheck
+      branch_prefix: nav
+      scope: core
+
+      # Optional: Override the prompt file
+      # First, copy the seed prompt to your repo:
+      # mkdir -p ops/prompts
+      # cp .github/actions/run-gemini-orchestrator/seed/ops/prompts/navratna_orchestrator.md ops/prompts/
+      # Then uncomment:
+      # prompt_file: ops/prompts/navratna_orchestrator.md
+
+# Alternative configurations:
+
+# For npm-based monorepo:
+# with:
+#   pkg_mgr: npm
+#   install_cmd: npm ci
+#   build_cmd: npm run build --workspaces
+#   test_cmd: npm test --workspaces -- --ci
+#   lint_cmd: npm run lint --workspaces
+#   typecheck_cmd: npm run typecheck --workspaces
+
+# For yarn-based monorepo:
+# with:
+#   pkg_mgr: yarn
+#   install_cmd: yarn install --frozen-lockfile
+#   build_cmd: yarn workspaces run build
+#   test_cmd: yarn workspaces run test --ci
+#   lint_cmd: yarn workspaces run lint
+#   typecheck_cmd: yarn workspaces run typecheck
+
+# For single-package repo:
+# with:
+#   build_cmd: npm run build
+#   test_cmd: npm test
+#   lint_cmd: npm run lint
+#   typecheck_cmd: npm run typecheck

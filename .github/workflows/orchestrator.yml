@@ -1,0 +1,109 @@
+name: Navratna Orchestrator (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      default_branch:
+        required: false
+        type: string
+        default: main
+      pkg_mgr:
+        required: false
+        type: string
+        default: pnpm
+      install_cmd:
+        required: false
+        type: string
+        default: pnpm i
+      build_cmd:
+        required: false
+        type: string
+        default: pnpm -w build
+      test_cmd:
+        required: false
+        type: string
+        default: pnpm -w test -- --ci
+      lint_cmd:
+        required: false
+        type: string
+        default: pnpm -w lint
+      typecheck_cmd:
+        required: false
+        type: string
+        default: pnpm -w typecheck
+      branch_prefix:
+        required: false
+        type: string
+        default: nav
+      scope:
+        required: false
+        type: string
+        default: core
+      prompt_file:
+        required: false
+        type: string
+        default: ops/prompts/navratna_orchestrator.md
+
+jobs:
+  run:
+    name: Run orchestrator
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Seed ops/ prompts if missing
+        run: |
+          mkdir -p ops/prompts ops/out
+          if [ ! -f "${{ inputs.prompt_file }}" ]; then
+            echo "Copying seed prompts from action..."
+            # The composite action will handle seeding if needed
+          fi
+
+      - name: Resolve status/work-type (labels → state)
+        id: ctx
+        shell: bash
+        run: |
+          STATUS="Unknown"
+          WORK_TYPE="feature"
+          if [ "${{ github.event_name }}" = "issues" ]; then
+            LABELS='${{ toJson(github.event.issue.labels) }}'
+            echo "Processing labels: $LABELS"
+
+            # Extract status
+            STATUS=$(echo "$LABELS" | jq -r '.[].name' | grep '^status:' | sed 's/status://' | head -n1 || echo "Unknown")
+            # Capitalize first letter
+            STATUS="${STATUS^}"
+
+            # Extract work type
+            WORK_TYPE=$(echo "$LABELS" | jq -r '.[].name' | grep -E '^(feature|refactor|performance|dep-bump|bugfix|docs|chore)$' | head -n1 || echo "feature")
+          fi
+          echo "Resolved status: $STATUS, work_type: $WORK_TYPE"
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "worktype=$WORK_TYPE" >> $GITHUB_OUTPUT
+
+      - name: Run Gemini Orchestrator (composite)
+        uses: ./.github/actions/run-gemini-orchestrator
+        with:
+          api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt_file: ${{ inputs.prompt_file }}
+          repo_full_name: ${{ github.repository }}
+          default_branch: ${{ inputs.default_branch }}
+          pkg_mgr: ${{ inputs.pkg_mgr }}
+          install_cmd: ${{ inputs.install_cmd }}
+          build_cmd: ${{ inputs.build_cmd }}
+          test_cmd: ${{ inputs.test_cmd }}
+          lint_cmd: ${{ inputs.lint_cmd }}
+          typecheck_cmd: ${{ inputs.typecheck_cmd }}
+          branch_prefix: ${{ inputs.branch_prefix }}
+          scope: ${{ inputs.scope }}
+          event: ${{ github.event_name }}
+          project_status: ${{ steps.ctx.outputs.status }}
+          work_type: ${{ steps.ctx.outputs.worktype }}
+          issue_number: ${{ github.event.issue.number || 0 }}
+          issue_title: ${{ github.event.issue.title || '' }}
+          issue_body_json: ${{ toJson(github.event.issue.body || '') }}

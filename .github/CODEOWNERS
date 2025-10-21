@@ -1,0 +1,19 @@
+# DevFlow Template CODEOWNERS
+# Define who should review changes to specific parts of the codebase
+
+# Default owners for everything
+* @tardis-pro/devflow-maintainers
+
+# Workflows and actions
+/.github/workflows/ @tardis-pro/devflow-maintainers
+/.github/actions/ @tardis-pro/devflow-maintainers
+
+# Bootstrap and tooling
+/scripts/ @tardis-pro/devflow-maintainers
+
+# Seed prompts (critical)
+/.github/actions/run-gemini-orchestrator/seed/ @tardis-pro/devflow-maintainers
+
+# Documentation
+/README.md @tardis-pro/devflow-maintainers
+/examples/ @tardis-pro/devflow-maintainers
